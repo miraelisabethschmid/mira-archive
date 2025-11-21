@@ -1,0 +1,29 @@
+name: Sync Archive
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync-archive:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run sync script
+        run: |
+          chmod +x scripts/sync-archive.sh
+          ./scripts/sync-archive.sh
+
+      - name: Commit and push archive snapshot
+        run: |
+          git config user.name "actions-user"
+          git config user.email "actions@users.noreply.github.com"
+
+          git add archive/
+          git commit -m "Archive Sync" || echo "No changes"
+          git push
