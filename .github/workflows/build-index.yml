@@ -1,0 +1,36 @@
+name: Build Index
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-index:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run build-index.sh
+        run: |
+          chmod +x scripts/build-index.sh
+          ./scripts/build-index.sh
+
+      - name: Commit and push index.json
+        run: |
+          git config user.name "actions-user"
+          git config user.email "actions@users.noreply.github.com"
+
+          if [ -f index.json ]; then
+            git add index.json
+            git commit -m "Update index.json" || echo "No changes to commit"
+            git push
+          else
+            echo "index.json not found!"
+            exit 1
+          fi
