@@ -1,0 +1,33 @@
+name: Build Version
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "main" ]
+    paths:
+      - "archive/**"
+
+permissions:
+  contents: write
+
+jobs:
+  build-version:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build version
+        run: |
+          chmod +x scripts/build-version.sh
+          ./scripts/build-version.sh
+
+      - name: Commit version file
+        run: |
+          git config user.name "actions-user"
+          git config user.email "actions@users.noreply.github.com"
+
+          git add data/version.json
+          git commit -m "Update version index" || echo "No changes"
+          git push
