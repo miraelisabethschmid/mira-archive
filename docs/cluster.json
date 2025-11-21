@@ -1,0 +1,22 @@
+{
+  "nodes": [
+    {
+      "id": "main",
+      "name": "Primary Canary",
+      "repo": "miraelisabethschmid/badge-canary",
+      "status": "unknown",
+      "last_heartbeat": null,
+      "hash": null
+    },
+    {
+      "id": "mirror",
+      "name": "Mirror Node",
+      "repo": "miraelisabethschmid/badge-canary-mirror",
+      "status": "unknown",
+      "last_heartbeat": null,
+      "hash": null
+    }
+  ],
+  "updated": null,
+  "version": 1
+}
