@@ -1,33 +1,117 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Badge Canary</title>
+  <title>Mira Archive</title>
+
   <style>
     body {
       margin: 0;
+      padding: 0;
+      background: #000;
+      color: #fff;
       font-family: Arial, sans-serif;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      height: 100vh;
-      background: #fafafa;
+      min-height: 100vh;
     }
-    h1 { margin-bottom: 20px; }
-    a {
-      font-size: 20px;
-      padding: 12px 20px;
+
+    h1 {
+      margin-top: 40px;
+      font-size: 28px;
+      letter-spacing: 1px;
+      font-weight: 600;
+    }
+
+    .cluster {
+      margin-top: 30px;
+      padding: 20px;
+      border-radius: 12px;
+      background: #111;
+      width: 90%;
+      max-width: 700px;
+      box-shadow: 0 0 20px rgba(255, 255, 0, 0.15);
+    }
+
+    .cluster h2 {
+      margin: 0 0 15px 0;
+      color: #f5cd00;
+      font-size: 22px;
+      font-weight: 600;
+    }
+
+    .item {
+      margin: 10px 0;
+      padding: 14px;
       border-radius: 8px;
-      background: black;
-      color: white;
-      text-decoration: none;
+      background: #1a1a1a;
+      border: 1px solid #333;
+    }
+
+    .item span {
+      display: block;
+      font-size: 14px;
+      opacity: 0.9;
+    }
+
+    .loading {
+      margin-top: 40px;
+      font-size: 18px;
+      opacity: 0.6;
     }
   </style>
 </head>
+
 <body>
-  <h1>Badge Canary</h1>
-  <a href="/docs/">Enter</a>
+  <h1>Mira Cluster Archive</h1>
+  <div id="content"></div>
+  <div class="loading" id="loading">Lade Cluster-Daten…</div>
+
+  <script>
+    async function loadCluster() {
+      const content = document.getElementById("content");
+      const loader = document.getElementById("loading");
+
+      try {
+        const url = "https://raw.githubusercontent.com/miraelisabethschmid/mira-archive/main/data/index.json";
+        const response = await fetch(url, { cache: "no-store" });
+
+        if (!response.ok) throw new Error("Fehler beim Laden des Index.");
+
+        const clusters = await response.json();
+
+        loader.style.display = "none";
+
+        clusters.forEach(cluster => {
+          const box = document.createElement("div");
+          box.className = "cluster";
+
+          box.innerHTML = `<h2>${cluster.name}</h2>`;
+
+          cluster.items.forEach(item => {
+            const div = document.createElement("div");
+            div.className = "item";
+
+            div.innerHTML = `
+              <span><b>Datei:</b> ${item.file}</span>
+              <span><b>Größe:</b> ${item.size}</span>
+              <span><b>Letztes Update:</b> ${item.updated}</span>
+              <span><b>Hash:</b> ${item.hash}</span>
+            `;
+
+            box.appendChild(div);
+          });
+
+          content.appendChild(box);
+        });
+      } catch (err) {
+        loader.innerText = "Fehler beim Laden des Archivs.";
+      }
+    }
+
+    loadCluster();
+  </script>
 </body>
 </html>
