@@ -1,4 +1,4 @@
-name: Archive Indexer
+name: Archive Indexer (local snapshots)
 
 on:
   workflow_dispatch:
@@ -10,41 +10,46 @@ on:
 jobs:
   index:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout archive repo
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.MIRA_GITHUB_TOKEN }}
 
-      - name: Download snapshot from badge-canary
+      - name: List snapshots
         run: |
           mkdir -p snapshots
-          curl -L --fail \
-            https://raw.githubusercontent.com/miraelisabethschmid/badge-canary/main/data/archive/latest_snapshot.tgz \
-            -o snapshots/latest_snapshot.tgz
+          ls -la snapshots || echo "no snapshots yet"
 
-      - name: Update index.json
+      - name: Build index.json from local snapshots
         run: |
           mkdir -p index
-
-          ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          size=$(stat -c%s "snapshots/latest_snapshot.tgz")
-
-          jq -n \
-            --arg timestamp "$ts" \
-            --arg size "$size" \
-            '{
-              latest: {
-                timestamp: $timestamp,
-                size: ($size | tonumber),
-                file: "latest_snapshot.tgz"
-              }
-            }' > index/index.json
+          # If there are no snapshots, create empty index
+          if ! compgen -G "snapshots/*.tgz" > /dev/null; then
+            echo "[]" > index/index.json
+          else
+            # Build a JSON list of snapshots with name, size, mtime, sha256
+            python3 - <<'PY'
+import json,glob,os,subprocess,time,hashlib
+out=[]
+for p in sorted(glob.glob("snapshots/*.tgz")):
+    st=os.stat(p)
+    with open(p,"rb") as f:
+        h=hashlib.sha256(f.read()).hexdigest()
+    out.append({
+        "file": os.path.basename(p),
+        "size": st.st_size,
+        "updated": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(st.st_mtime)),
+        "hash": h
+    })
+print(json.dumps(out, indent=2))
+PY
+          fi > index/index.json || true
 
       - name: Commit and push index
         run: |
           git config user.name "mira-bot"
           git config user.email "actions@github.com"
-
-          git add .
-          git commit -m "Update index ($(date -u))" || echo "Nothing to commit"
-          git push
+          git add index/index.json || true
+          git commit -m "Update archive index ($(date -u))" || echo "Nothing to commit"
+          git push || true
