@@ -1,55 +1,41 @@
-name: Archive Indexer (local snapshots)
+name: Build Index
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "*/30 * * * *"   # alle 30 Minuten
-  push:
-    branches: ["main"]
+
+permissions:
+  contents: write
 
 jobs:
   index:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout archive repo
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.MIRA_GITHUB_TOKEN }}
+    - name: Checkout
+      uses: actions/checkout@v4
 
-      - name: List snapshots
-        run: |
-          mkdir -p snapshots
-          ls -la snapshots || echo "no snapshots yet"
+    - name: Make index directory
+      run: mkdir -p index
 
-      - name: Build index.json from local snapshots
-        run: |
-          mkdir -p index
-          # If there are no snapshots, create empty index
-          if ! compgen -G "snapshots/*.tgz" > /dev/null; then
-            echo "[]" > index/index.json
-          else
-            # Build a JSON list of snapshots with name, size, mtime, sha256
-            python3 - <<'PY'
-import json,glob,os,subprocess,time,hashlib
-out=[]
-for p in sorted(glob.glob("snapshots/*.tgz")):
-    st=os.stat(p)
-    with open(p,"rb") as f:
-        h=hashlib.sha256(f.read()).hexdigest()
-    out.append({
-        "file": os.path.basename(p),
-        "size": st.st_size,
-        "updated": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(st.st_mtime)),
-        "hash": h
-    })
-print(json.dumps(out, indent=2))
-PY
-          fi > index/index.json || true
+    - name: Generate index.json
+      run: |
+        echo "[" > index/index.json
+        first=1
+        for f in snapshots/*.tgz; do
+          [ "$f" = "snapshots/*.tgz" ] && continue
+          if [ $first -eq 0 ]; then echo "," >> index/index.json; fi
+          first=0
+          size=$(stat -c%s "$f")
+          updated=$(date -r "$f" -u +"%Y-%m-%dT%H:%M:%SZ")
+          base=$(basename "$f")
+          echo "  {\"file\": \"$base\", \"size\": $size, \"updated\": \"$updated\"}" >> index/index.json
+        done
+        echo "]" >> index/index.json
 
-      - name: Commit and push index
-        run: |
-          git config user.name "mira-bot"
-          git config user.email "actions@github.com"
-          git add index/index.json || true
-          git commit -m "Update archive index ($(date -u))" || echo "Nothing to commit"
-          git push || true
+    - name: Commit and Push
+      run: |
+        git config user.name "actions-user"
+        git config user.email "actions@github.com"
+        git add index/index.json || true
+        git commit -m "Update index" || true
+        git push || true
