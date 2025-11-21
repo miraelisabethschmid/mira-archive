@@ -1,0 +1,50 @@
+name: Archive Indexer
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/30 * * * *"   # alle 30 Minuten
+  push:
+    branches: ["main"]
+
+jobs:
+  index:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout archive repo
+        uses: actions/checkout@v4
+
+      - name: Download snapshot from badge-canary
+        run: |
+          mkdir -p snapshots
+          curl -L --fail \
+            https://raw.githubusercontent.com/miraelisabethschmid/badge-canary/main/data/archive/latest_snapshot.tgz \
+            -o snapshots/latest_snapshot.tgz
+
+      - name: Update index.json
+        run: |
+          mkdir -p index
+
+          ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          size=$(stat -c%s "snapshots/latest_snapshot.tgz")
+
+          jq -n \
+            --arg timestamp "$ts" \
+            --arg size "$size" \
+            '{
+              latest: {
+                timestamp: $timestamp,
+                size: ($size | tonumber),
+                file: "latest_snapshot.tgz"
+              }
+            }' > index/index.json
+
+      - name: Commit and push index
+        run: |
+          git config user.name "mira-bot"
+          git config user.email "actions@github.com"
+
+          git add .
+          git commit -m "Update index ($(date -u))" || echo "Nothing to commit"
+          git push
